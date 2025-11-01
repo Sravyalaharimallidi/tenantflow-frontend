@@ -160,7 +160,7 @@ export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard'),
   
   getUsers: (filters = {}) => api.get('/admin/users', { params: filters }),
-  
+
   updateUserStatus: (userId, isActive, notes) => 
     api.put(`/admin/user/${userId}/status`, { isActive, notes }),
   

@@ -7,9 +7,7 @@ const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
 
@@ -18,21 +16,23 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
 
-  // Configure axios defaults
+  // ✅ Set baseURL for all axios calls
   useEffect(() => {
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    } else {
-      delete axios.defaults.headers.common['Authorization'];
-    }
+    axios.defaults.baseURL = process.env.REACT_APP_API_URL;
+  }, []);
+
+  // ✅ Attach token to every request
+  useEffect(() => {
+    if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    else delete axios.defaults.headers.common['Authorization'];
   }, [token]);
 
-  // Verify token on app load
+  // ✅ Verify token when app loads
   useEffect(() => {
     const verifyToken = async () => {
       if (token) {
         try {
-          const response = await axios.get('/api/auth/verify');
+          const response = await axios.get('/auth/verify');
           setUser(response.data.user);
         } catch (error) {
           console.error('Token verification failed:', error);
@@ -48,17 +48,20 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials, userType) => {
     try {
       setLoading(true);
-      const endpoint = userType === 'admin' ? '/api/auth/login/admin' : 
-                      userType === 'owner' ? '/api/auth/login/owner' : 
-                      '/api/auth/login/tenant';
-      
+      const endpoint =
+        userType === 'admin'
+          ? '/auth/login/admin'
+          : userType === 'owner'
+          ? '/auth/login/owner'
+          : '/auth/login/tenant';
+
       const response = await axios.post(endpoint, credentials);
       const { token: newToken, user: userData } = response.data;
-      
+
       setToken(newToken);
       setUser(userData);
       localStorage.setItem('token', newToken);
-      
+
       toast.success('Login successful!');
       return { success: true, user: userData };
     } catch (error) {
@@ -70,18 +73,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // role can be 'owner' | 'tenant' | 'admin'
   const register = async (userData, role = 'owner') => {
     try {
       setLoading(true);
       let response;
-      if (role === 'tenant') {
-        response = await authAPI.registerTenant(userData);
-      } else if (role === 'admin') {
-        response = await authAPI.registerAdmin(userData);
-      } else {
-        response = await authAPI.registerOwner(userData);
-      }
+      if (role === 'tenant') response = await authAPI.registerTenant(userData);
+      else if (role === 'admin') response = await authAPI.registerAdmin(userData);
+      else response = await authAPI.registerOwner(userData);
 
       toast.success('Registration successful! Please wait for admin approval.');
       return { success: true, data: response.data };
@@ -96,9 +94,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      if (token) {
-        await axios.post('/api/auth/logout');
-      }
+      if (token) await axios.post('/auth/logout');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -110,9 +106,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const updateUser = (updatedUser) => {
-    setUser(updatedUser);
-  };
+  const updateUser = (updatedUser) => setUser(updatedUser);
 
   const value = {
     user,
@@ -129,9 +123,5 @@ export const AuthProvider = ({ children }) => {
     isVerified: user?.verificationStatus === 'approved'
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
